@@ -18,10 +18,12 @@ type Cell struct {
 
 func GetConfig() cfg {
 	return cfg{
-		Host:      "localhost",
-		Username:  "postgres",
-		Pwd:       "admin",
-		Dbname:    "postgres",
+
+		Host:     "localhost",
+		Username: "postgres",
+		Pwd:      "admin",
+		Dbname:   "postgres",
+
 		AccessKey: "pkZuicLquRswTTjygYXFgpUfVzpvIwa3-i5cHfe-",
 		SecretKey: "BG6vZZFYimQqHgZmvmuzXSb8KK_5A5b0HZf0l9iB",
 		Bucket:    "iamhele-com",

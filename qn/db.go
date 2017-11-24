@@ -3,8 +3,10 @@ package qn
 import (
 	"database/sql"
 	"fmt"
+	"math"
 
 	"github.com/douban-girls/qiniu-migrate/config"
+	_ "github.com/lib/pq"
 )
 
 func DbConnect() *sql.DB {
@@ -15,28 +17,58 @@ func DbConnect() *sql.DB {
 	return db
 }
 
-func GetImages(db *sql.DB) (result []*config.Cell) {
-	rows, err := db.Query("SELECT id, src FROM cells WHERE cate=176 AND cate=179")
+func GetImageLen(db *sql.DB) (count int) {
+	result, err := db.Query("SELECT count(id) FROM cells WHERE cate=176 OR cate=179")
+	defer result.Close()
 	config.ErrorHandle(err)
-	defer rows.Close()
-
-	for rows.Next() {
-		var id int
-		var src string
-		if err := rows.Scan(&id, &src); err != nil {
+	for result.Next() {
+		if err := result.Scan(&count); err != nil {
 			config.ErrorHandle(err)
 		}
-
-		result = append(result, &config.Cell{
-			ID:  id,
-			Src: src,
-		})
 	}
 	return
 }
 
+func GetImages(db *sql.DB, result chan *config.Cell, count int) {
+	times := int(math.Ceil(float64(count) / 1000))
+
+	stmt, err := db.Prepare("SELECT id, img FROM cells WHERE cate=176 OR cate=179 ORDER BY id ASC LIMIT 1000 OFFSET $1")
+	config.ErrorHandle(err)
+	for i := 0; i < times; i++ {
+		rows, err := stmt.Query(1000 * times)
+		config.ErrorHandle(err)
+		defer rows.Close()
+
+		if err := rows.Err(); err != nil {
+			config.ErrorHandle(err)
+		}
+		if rows.Next() {
+			fmt.Println("next true")
+		} else {
+			fmt.Println("next false")
+		}
+
+		for rows.Next() {
+			fmt.Println("before scan data")
+			var id int
+			var src string
+			if err := rows.Scan(&id, &src); err != nil {
+				config.ErrorHandle(err)
+			}
+
+			fmt.Println(id, src)
+
+			result <- &config.Cell{
+				ID:  id,
+				Src: src,
+			}
+		}
+	}
+	close(result)
+}
+
 func UpdateImage(db *sql.DB, cell *config.Cell) bool {
-	_, err := db.Query("UPDATE cells SET img=%1 WHERE id=%2", cell.Src, cell.ID)
+	_, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false

@@ -2,6 +2,7 @@ package qn
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -46,6 +47,7 @@ func UploadToQiniu(
 }
 
 func downloadImg(cell *config.Cell) (io.ReadCloser, int64) {
+	fmt.Println(cell.Src)
 	res, e := http.Get(cell.Src)
 	config.ErrorHandle(e)
 	lenStr := res.Header.Get("content-length")
