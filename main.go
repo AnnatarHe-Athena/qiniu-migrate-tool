@@ -21,6 +21,7 @@ func main() {
 	defer db.Close()
 
 	count := qn.GetImageLen(db)
+	println(count)
 	wg.Add(count)
 
 	go qn.GetImages(db, imgsChannel, count)
@@ -33,15 +34,15 @@ func main() {
 			for {
 				select {
 				case item := <-imgsChannel:
-					fmt.Println("go item: ", item.Src)
-					if !strings.HasPrefix(item.Src, "qn://") {
+					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
+						fmt.Println("go item: ", item.Src)
 						filename := qn.UploadToQiniu(uploader, item, token)
 						item.Src = "qn://" + filename
 						if qn.UpdateImage(db, item) {
 							fmt.Println("--- SUCCESS SAVED A FILE ---")
 						}
+						wg.Done()
 					}
-					wg.Done()
 					// done <- true
 
 				}
