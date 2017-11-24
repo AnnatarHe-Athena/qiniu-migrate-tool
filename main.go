@@ -11,8 +11,10 @@ import (
 const goroutineCount = 16
 
 func main() {
+	imgsChannel := make(chan *config.Cell)
 	var wg sync.WaitGroup
-	imgsChannel := make(chan *config.Cell, goroutineCount)
+	// done := make(chan bool)
+	// var counter uint32 = 0
 
 	db := qn.DbConnect()
 	defer db.Close()
@@ -20,25 +22,25 @@ func main() {
 	count := qn.GetImageLen(db)
 	wg.Add(count)
 
-	fmt.Println("count: ", count)
-
-	qn.GetImages(db, imgsChannel, count)
+	go qn.GetImages(db, imgsChannel, count)
 
 	token := qn.SetupQiniu()
 	uploader := qn.UploaderGet()
 
 	for i := 0; i < goroutineCount; i++ {
-		go func(ch chan *config.Cell) {
-			item := <-ch
-			fmt.Println(item)
-			fmt.Println(item.ID, item.Src)
+		go func() {
+			item := <-imgsChannel
+			if item == nil {
+				return
+			}
 			filename := qn.UploadToQiniu(uploader, item, token)
 			item.Src = "qn://" + filename
 			if qn.UpdateImage(db, item) {
 				fmt.Println("--- SUCCESS SAVED A FILE ---")
 			}
 			wg.Done()
-		}(imgsChannel)
+			// done <- true
+		}()
 	}
 	wg.Wait()
 	println("job done")

@@ -31,37 +31,27 @@ func GetImageLen(db *sql.DB) (count int) {
 
 func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 	times := int(math.Ceil(float64(count) / 1000))
-
 	stmt, err := db.Prepare("SELECT id, img FROM cells WHERE cate=176 OR cate=179 ORDER BY id ASC LIMIT 1000 OFFSET $1")
 	config.ErrorHandle(err)
 	for i := 0; i < times; i++ {
-		rows, err := stmt.Query(1000 * times)
+		rows, err := stmt.Query(1000 * i)
 		config.ErrorHandle(err)
 		defer rows.Close()
 
 		if err := rows.Err(); err != nil {
 			config.ErrorHandle(err)
 		}
-		if rows.Next() {
-			fmt.Println("next true")
-		} else {
-			fmt.Println("next false")
-		}
-
 		for rows.Next() {
-			fmt.Println("before scan data")
 			var id int
 			var src string
 			if err := rows.Scan(&id, &src); err != nil {
 				config.ErrorHandle(err)
 			}
-
-			fmt.Println(id, src)
-
-			result <- &config.Cell{
+			cell := &config.Cell{
 				ID:  id,
 				Src: src,
 			}
+			result <- cell
 		}
 	}
 	close(result)

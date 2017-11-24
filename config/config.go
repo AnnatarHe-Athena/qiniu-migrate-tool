@@ -18,7 +18,6 @@ type Cell struct {
 
 func GetConfig() cfg {
 	return cfg{
-
 		Host:     "localhost",
 		Username: "postgres",
 		Pwd:      "admin",
