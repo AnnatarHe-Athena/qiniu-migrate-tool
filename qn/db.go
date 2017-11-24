@@ -9,6 +9,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const baseWhereCond = " FROM cells WHERE img not like '%qn://%' and img like 'https://pic%' "
+
 func DbConnect() *sql.DB {
 	cfg := config.GetConfig()
 	dbPath := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", cfg.Host, cfg.Username, cfg.Pwd, cfg.Dbname)
@@ -18,7 +20,7 @@ func DbConnect() *sql.DB {
 }
 
 func GetImageLen(db *sql.DB) (count int) {
-	result, err := db.Query("SELECT count(id) FROM cells WHERE cate=176 OR cate=179")
+	result, err := db.Query("SELECT count(id)" + baseWhereCond)
 	defer result.Close()
 	config.ErrorHandle(err)
 	for result.Next() {
@@ -31,7 +33,7 @@ func GetImageLen(db *sql.DB) (count int) {
 
 func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 	times := int(math.Ceil(float64(count) / 1000))
-	stmt, err := db.Prepare("SELECT id, img FROM cells WHERE cate=176 OR cate=179 ORDER BY id ASC LIMIT 1000 OFFSET $1")
+	stmt, err := db.Prepare("SELECT id, img" + baseWhereCond + "ORDER BY id ASC LIMIT 1000 OFFSET $1")
 	config.ErrorHandle(err)
 	for i := 0; i < times; i++ {
 		rows, err := stmt.Query(1000 * i)
@@ -54,11 +56,13 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 			result <- cell
 		}
 	}
+	defer stmt.Close()
 	close(result)
 }
 
 func UpdateImage(db *sql.DB, cell *config.Cell) bool {
-	_, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
+	rows, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return false

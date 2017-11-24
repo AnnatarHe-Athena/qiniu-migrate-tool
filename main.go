@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/douban-girls/qiniu-migrate/config"
@@ -29,17 +30,22 @@ func main() {
 
 	for i := 0; i < goroutineCount; i++ {
 		go func() {
-			item := <-imgsChannel
-			if item == nil {
-				return
+			for {
+				select {
+				case item := <-imgsChannel:
+					fmt.Println("go item: ", item.Src)
+					if !strings.HasPrefix(item.Src, "qn://") {
+						filename := qn.UploadToQiniu(uploader, item, token)
+						item.Src = "qn://" + filename
+						if qn.UpdateImage(db, item) {
+							fmt.Println("--- SUCCESS SAVED A FILE ---")
+						}
+					}
+					wg.Done()
+					// done <- true
+
+				}
 			}
-			filename := qn.UploadToQiniu(uploader, item, token)
-			item.Src = "qn://" + filename
-			if qn.UpdateImage(db, item) {
-				fmt.Println("--- SUCCESS SAVED A FILE ---")
-			}
-			wg.Done()
-			// done <- true
 		}()
 	}
 	wg.Wait()

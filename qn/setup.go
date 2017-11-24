@@ -42,7 +42,10 @@ func UploadToQiniu(
 	filename = config.GenFilename(img.Src)
 	ret := storage.PutExtra{}
 	err := uploader.Put(context.Background(), &ret, token, filename, content, length, nil)
-	config.ErrorHandle(err)
+	if err != nil {
+		fmt.Println("retry to save the images")
+		return UploadToQiniu(uploader, img, token)
+	}
 	return
 }
 
