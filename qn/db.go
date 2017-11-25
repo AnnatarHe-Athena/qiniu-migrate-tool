@@ -60,12 +60,20 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 	close(result)
 }
 
-func UpdateImage(db *sql.DB, cell *config.Cell) bool {
+func UpdateImage(db *sql.DB, cell *config.Cell) (rep bool) {
+	defer func() {
+		if e := recover(); e != nil {
+			rep = false
+		}
+	}()
 	rows, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
 	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
-		return false
+		rep = false
+		return
 	}
-	return true
+	fmt.Println("end error")
+	rep = true
+	return
 }
