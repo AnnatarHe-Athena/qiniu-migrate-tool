@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -9,19 +10,15 @@ import (
 	"github.com/douban-girls/qiniu-migrate/qn"
 )
 
-const goroutineCount = 16
-
 func main() {
+	goroutineCount := runtime.NumCPU()
 	imgsChannel := make(chan *config.Cell)
 	var wg sync.WaitGroup
-	// done := make(chan bool)
-	// var counter uint32 = 0
 
 	db := qn.DbConnect()
 	defer db.Close()
 
 	count := qn.GetImageLen(db)
-	println(count)
 	wg.Add(count)
 
 	go qn.GetImages(db, imgsChannel, count)
@@ -40,6 +37,10 @@ func main() {
 						item.Src = "qn://" + filename
 						if qn.UpdateImage(db, item) {
 							fmt.Println("--- SUCCESS SAVED A FILE ---")
+						} else {
+							//  已存在，不用删除文件，但是要删掉数据库的文件
+							fmt.Println("--- Already have the file ---")
+							qn.DeleteRecord(db, item)
 						}
 						wg.Done()
 					}

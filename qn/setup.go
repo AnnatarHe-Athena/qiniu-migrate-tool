@@ -49,6 +49,26 @@ func UploadToQiniu(
 	return
 }
 
+func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
+	bucket := config.GetConfig().Bucket
+	err := bucketManager.Delete(bucket, filename)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func GetBucketManager() *storage.BucketManager {
+	c := config.GetConfig()
+	mac := qbox.NewMac(c.AccessKey, c.SecretKey)
+	cfg := storage.Config{
+		// 是否使用https域名进行资源管理
+		UseHTTPS: false,
+	}
+	bucketManager := storage.NewBucketManager(mac, &cfg)
+	return bucketManager
+}
+
 func downloadImg(cell *config.Cell) (io.ReadCloser, int64) {
 	fmt.Println(cell.Src)
 	res, e := http.Get(cell.Src)

@@ -61,19 +61,23 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 }
 
 func UpdateImage(db *sql.DB, cell *config.Cell) (rep bool) {
-	defer func() {
-		if e := recover(); e != nil {
-			rep = false
-		}
-	}()
 	rows, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
-	defer rows.Close()
 	if err != nil {
+		fmt.Println("------- update error: --------")
 		fmt.Println(err.Error())
 		rep = false
 		return
 	}
 	fmt.Println("end error")
 	rep = true
+	// 手动关闭
+	rows.Close()
 	return
+}
+
+func DeleteRecord(db *sql.DB, cell *config.Cell) bool {
+	rows, err := db.Query("DELETE FROM cells WHERE id=$1", cell.ID)
+	config.ErrorHandle(err)
+	defer rows.Close()
+	return true
 }
