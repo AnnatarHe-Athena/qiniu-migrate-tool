@@ -36,9 +36,12 @@ func UploadToQiniu(
 	uploader *storage.FormUploader,
 	img *config.Cell,
 	token string,
-) (filename string) {
-	content, length := downloadImg(img)
+) (filename string, ok bool) {
+	content, length, ok := downloadImg(img)
 	defer content.Close()
+	if !ok {
+		return "", ok
+	}
 	filename = config.GenFilename(img.Src)
 	ret := storage.PutExtra{}
 	err := uploader.Put(context.Background(), &ret, token, filename, content, length, nil)
@@ -46,7 +49,7 @@ func UploadToQiniu(
 		fmt.Println("retry to save the images")
 		return UploadToQiniu(uploader, img, token)
 	}
-	return
+	return filename, true
 }
 
 func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
@@ -69,12 +72,15 @@ func GetBucketManager() *storage.BucketManager {
 	return bucketManager
 }
 
-func downloadImg(cell *config.Cell) (io.ReadCloser, int64) {
+func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
 	fmt.Println(cell.Src)
 	res, e := http.Get(cell.Src)
 	config.ErrorHandle(e)
 	lenStr := res.Header.Get("content-length")
 	length, err := strconv.ParseInt(lenStr, 10, 64)
 	config.ErrorHandle(err)
-	return res.Body, length
+	if res.StatusCode == 301 {
+		return res.Body, length, false
+	}
+	return res.Body, length, true
 }

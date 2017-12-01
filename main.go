@@ -33,13 +33,19 @@ func main() {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
 						fmt.Println("go item: ", item.Src)
-						filename := qn.UploadToQiniu(uploader, item, token)
-						item.Src = "qn://" + filename
-						if qn.UpdateImage(db, item) {
-							fmt.Println("--- SUCCESS SAVED A FILE ---")
+						filename, ok := qn.UploadToQiniu(uploader, item, token)
+						if ok {
+							item.Src = "qn://" + filename
+							if qn.UpdateImage(db, item) {
+								fmt.Println("--- SUCCESS SAVED A FILE ---")
+							} else {
+								//  已存在，不用删除文件，但是要删掉数据库的文件
+								fmt.Println("--- Already have the file ---")
+								qn.DeleteRecord(db, item)
+							}
 						} else {
-							//  已存在，不用删除文件，但是要删掉数据库的文件
-							fmt.Println("--- Already have the file ---")
+							// 不存在，但是 图片没了，还是要删掉数据库文件
+							fmt.Println("--- image has gone ---")
 							qn.DeleteRecord(db, item)
 						}
 						wg.Done()
