@@ -64,10 +64,7 @@ func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
 func GetBucketManager() *storage.BucketManager {
 	c := config.GetConfig()
 	mac := qbox.NewMac(c.AccessKey, c.SecretKey)
-	cfg := storage.Config{
-		// 是否使用https域名进行资源管理
-		UseHTTPS: false,
-	}
+	cfg := storage.Config{UseHTTPS: false}
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 	return bucketManager
 }
