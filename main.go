@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
 	"strings"
 	"sync"
+
+	"gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	"github.com/douban-girls/qiniu-migrate/qn"
@@ -20,6 +21,7 @@ func main() {
 
 	count := qn.GetImageLen(db)
 	wg.Add(count)
+	bar := pb.StartNew(count)
 
 	go qn.GetImages(db, imgsChannel, count)
 
@@ -32,22 +34,23 @@ func main() {
 				select {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						fmt.Println("go item: ", item.Src)
+						// fmt.Println("go item: ", item.Src)
 						filename, ok := qn.UploadToQiniu(uploader, item, token)
 						if ok {
 							item.Src = "qn://" + filename
 							if qn.UpdateImage(db, item) {
-								fmt.Println("--- SUCCESS SAVED A FILE ---")
+								// fmt.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
 								//  已存在，不用删除文件，但是要删掉数据库的文件
-								fmt.Println("--- Already have the file ---")
+								// fmt.Println("--- Already have the file ---")
 								qn.DeleteRecord(db, item)
 							}
 						} else {
 							// 不存在，但是 图片没了，还是要删掉数据库文件
-							fmt.Println("--- image has gone ---")
+							// fmt.Println("--- image has gone ---")
 							qn.DeleteRecord(db, item)
 						}
+						bar.Increment()
 						wg.Done()
 					}
 					// done <- true
