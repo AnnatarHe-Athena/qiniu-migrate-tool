@@ -14,6 +14,7 @@ type cfg struct {
 type Cell struct {
 	ID  int
 	Src string
+	Md5 string
 }
 
 func GetConfig() cfg {

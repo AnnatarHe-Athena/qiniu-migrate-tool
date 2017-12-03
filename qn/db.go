@@ -1,7 +1,9 @@
 package qn
 
 import (
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math"
 
@@ -9,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const baseWhereCond = " FROM cells WHERE img not like '%qn://%' and img like 'https://pic%' "
+const baseWhereCond = " FROM cells WHERE img not like '%qn://%' "
 
 func DbConnect() *sql.DB {
 	cfg := config.GetConfig()
@@ -52,6 +54,7 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 			cell := &config.Cell{
 				ID:  id,
 				Src: src,
+				Md5: md5Hash(src),
 			}
 			result <- cell
 		}
@@ -60,15 +63,20 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 	close(result)
 }
 
+func md5Hash(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
 func UpdateImage(db *sql.DB, cell *config.Cell) (rep bool) {
-	rows, err := db.Query("UPDATE cells SET img=$1 WHERE id=$2", cell.Src, cell.ID)
+	rows, err := db.Query("UPDATE cells SET img=$1, md5=$2 WHERE id=$3", cell.Src, cell.Md5, cell.ID)
 	if err != nil {
 		fmt.Println("------- update error: --------")
 		fmt.Println(err.Error())
 		rep = false
 		return
 	}
-	fmt.Println("end error")
 	rep = true
 	// 手动关闭
 	rows.Close()

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	"github.com/qiniu/api.v7/auth/qbox"
@@ -70,8 +71,13 @@ func GetBucketManager() *storage.BucketManager {
 }
 
 func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
-	fmt.Println(cell.Src)
-	res, e := http.Get(cell.Src)
+	src := cell.Src
+	fmt.Println(src)
+	if !strings.HasPrefix(cell.Src, "http") {
+		// 微博图片，需要转 url
+		src = "http://wx2.sinaimg.cn/large/" + src
+	}
+	res, e := http.Get(src)
 	config.ErrorHandle(e)
 	lenStr := res.Header.Get("content-length")
 	length, err := strconv.ParseInt(lenStr, 10, 64)
