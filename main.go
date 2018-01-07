@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"runtime"
 	"strings"
 	"sync"
@@ -34,31 +35,30 @@ func main() {
 				select {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						// fmt.Println("go item: ", item.Src)
+						log.Println("go item: ", item.Src)
 						filename, ok := qn.UploadToQiniu(uploader, item, token)
 						if ok {
 							item.Src = "qn://" + filename
 							if qn.UpdateImage(db, item) {
-								// fmt.Println("--- SUCCESS SAVED A FILE ---")
+								log.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
 								//  已存在，不用删除文件，但是要删掉数据库的文件
-								// fmt.Println("--- Already have the file ---")
+								log.Println("--- Already have the file ---")
 								qn.DeleteRecord(db, item)
 							}
 						} else {
 							// 不存在，但是 图片没了，还是要删掉数据库文件
-							// fmt.Println("--- image has gone ---")
+							log.Println("--- image has gone ---")
 							qn.DeleteRecord(db, item)
 						}
 						bar.Increment()
 						wg.Done()
 					}
-					// done <- true
 
 				}
 			}
 		}()
 	}
 	wg.Wait()
-	println("job done")
+	log.Println("job done")
 }

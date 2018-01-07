@@ -2,8 +2,8 @@ package qn
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,7 +47,10 @@ func UploadToQiniu(
 	ret := storage.PutExtra{}
 	err := uploader.Put(context.Background(), &ret, token, filename, content, length, nil)
 	if err != nil {
-		fmt.Println("retry to save the images")
+		if err == io.EOF {
+			log.Panic("error when post the image to qiniu server")
+		}
+		log.Println("retry to save the images", err)
 		return UploadToQiniu(uploader, img, token)
 	}
 	return filename, true
@@ -57,7 +60,7 @@ func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
 	bucket := config.GetConfig().Bucket
 	err := bucketManager.Delete(bucket, filename)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 }

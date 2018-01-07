@@ -1,10 +1,11 @@
 package qn
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math"
 
 	"github.com/douban-girls/qiniu-migrate/config"
@@ -64,7 +65,7 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 }
 
 func md5Hash(text string) string {
-	hasher := md5.New()
+	hasher := sha256.New()
 	hasher.Write([]byte(text))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
@@ -72,8 +73,8 @@ func md5Hash(text string) string {
 func UpdateImage(db *sql.DB, cell *config.Cell) (rep bool) {
 	rows, err := db.Query("UPDATE cells SET img=$1, md5=$2 WHERE id=$3", cell.Src, cell.Md5, cell.ID)
 	if err != nil {
-		fmt.Println("------- update error: --------")
-		fmt.Println(err.Error())
+		log.Println("update error: ", err, cell.Src)
+		log.Println("md5: ", cell.Md5)
 		rep = false
 		return
 	}
