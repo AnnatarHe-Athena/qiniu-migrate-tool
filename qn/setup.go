@@ -50,6 +50,10 @@ func UploadToQiniu(
 		if err == io.EOF {
 			log.Panic("error when post the image to qiniu server")
 		}
+		if err.Error() == "file exists" {
+			log.Println(err)
+			return filename, true
+		}
 		log.Println("retry to save the images", err)
 		return UploadToQiniu(uploader, img, token)
 	}
