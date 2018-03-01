@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -30,12 +31,12 @@ func main() {
 	uploader := qn.UploaderGet()
 
 	for i := 0; i < goroutineCount; i++ {
-		go func() {
+		go func(index int) {
 			for {
 				select {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						log.Println("go item: ", item.Src)
+						log.Println("[thread", strconv.Itoa(index), "] -- go item: ", item.Src)
 						filename, ok := qn.UploadToQiniu(uploader, item, token)
 						if ok {
 							item.Src = "qn://" + filename
@@ -57,7 +58,7 @@ func main() {
 
 				}
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 	log.Println("job done")

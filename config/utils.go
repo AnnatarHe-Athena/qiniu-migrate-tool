@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -14,7 +15,8 @@ func ErrorHandle(err error) {
 
 // GenFilename will generater a filebase base on origin last filename not path
 func GenFilename(origin string) (filename string) {
-	strs := strings.Split(origin, "/")
+	u, _ := url.Parse(origin)
+	strs := strings.Split(u.Path, "/")
 	realName := strs[len(strs)-1]
 	filename = "athena/zhihu/" + realName
 	return
