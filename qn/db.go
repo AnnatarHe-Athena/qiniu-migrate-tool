@@ -55,7 +55,7 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 			cell := &config.Cell{
 				ID:  id,
 				Src: src,
-				Md5: md5Hash(src),
+				Md5: sha256hex(src),
 			}
 			result <- cell
 		}
@@ -64,7 +64,7 @@ func GetImages(db *sql.DB, result chan *config.Cell, count int) {
 	close(result)
 }
 
-func md5Hash(text string) string {
+func sha256hex(text string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(text))
 	return hex.EncodeToString(hasher.Sum(nil))
