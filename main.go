@@ -28,6 +28,7 @@ func main() {
 	go qn.GetImages(db, imgsChannel, count)
 
 	token := qn.SetupQiniu()
+	log.Println("qiniu token: ", token)
 	uploader := qn.UploaderGet()
 
 	for i := 0; i < goroutineCount; i++ {

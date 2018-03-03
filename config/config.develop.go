@@ -1,3 +1,5 @@
+// +build !release
+
 package config
 
 type cfg struct {
@@ -14,6 +16,7 @@ type cfg struct {
 type Cell struct {
 	ID  int
 	Src string
+	Md5 string
 }
 
 func GetConfig() cfg {
@@ -24,8 +27,7 @@ func GetConfig() cfg {
 		Dbname:    "postgres",
 		AccessKey: "",
 		SecretKey: "",
-
-		Bucket: "your-bucket",
-		IsDEV:  true,
+		Bucket:    "iamhele-com",
+		IsDEV:     true,
 	}
 }
