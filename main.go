@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -37,20 +36,19 @@ func main() {
 				select {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						log.Println("[thread", strconv.Itoa(index), "] -- go item: ", item.Src)
 						filename, ok := qn.UploadToQiniu(uploader, item, token)
 						if ok {
 							item.Src = "qn://" + filename
 							if qn.UpdateImage(db, item) {
-								log.Println("--- SUCCESS SAVED A FILE ---")
+								// log.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
 								//  已存在，不用删除文件，但是要删掉数据库的文件
-								log.Println("--- Already have the file ---")
+								// log.Println("--- Already have the file ---")
 								qn.DeleteRecord(db, item)
 							}
 						} else {
 							// 不存在，但是 图片没了，还是要删掉数据库文件
-							log.Println("--- image has gone ---")
+							// log.Println("--- image has gone ---")
 							qn.DeleteRecord(db, item)
 						}
 						bar.Increment()

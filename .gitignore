@@ -3,3 +3,4 @@
 debug
 config/config.release.go
 *.exe
+main
