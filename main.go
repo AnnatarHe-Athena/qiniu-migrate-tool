@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"runtime"
 	"strings"
@@ -10,26 +11,79 @@ import (
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	"github.com/douban-girls/qiniu-migrate/qn"
+	"github.com/qiniu/api.v7/storage"
 )
 
 func main() {
-	goroutineCount := runtime.NumCPU()
 	imgsChannel := make(chan *config.Cell)
 	var wg sync.WaitGroup
 
 	db := qn.DbConnect()
 	defer db.Close()
 
-	count := qn.GetImageLen(db)
+	count := qn.GetImageLen(db, true)
 	wg.Add(count)
 	bar := pb.StartNew(count)
 
-	go qn.GetImages(db, imgsChannel, count)
+	// go qn.GetImages(db, imgsChannel, count, true)
 
 	token := qn.SetupQiniu()
 	log.Println("qiniu token: ", token)
-	uploader := qn.UploaderGet()
+	// uploader := qn.UploaderGet()
 
+	// 先迁移
+	// migrateToQiniu(imgsChannel, uploader, db, token, func() interface{} {
+	// 	bar.Increment()
+	// 	wg.Done()
+	// 	return nil
+	// })
+	close(imgsChannel)
+	bar.Finish()
+
+	// wg.Wait()
+	log.Println("job done")
+
+	// 后删库
+	deleteImages(db)
+}
+
+// deleteImages will delete qiniu image and delete record in database
+func deleteImages(db *sql.DB) {
+	bm := qn.GetBucketManager()
+	length := qn.GetImageLen(db, false)
+	bar := pb.StartNew(length)
+	var wg sync.WaitGroup
+	wg.Add(length)
+	imgsWillDelete := make(chan *config.Cell)
+	go qn.GetImages(db, imgsWillDelete, length, false)
+
+	go func() {
+		for {
+			select {
+			case item := <-imgsWillDelete:
+				if item != nil && !strings.HasPrefix(item.Src, "qn://") {
+					filename := config.RevertFilename(item.Src)
+					log.Println(filename)
+					if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil {
+						log.Println(err)
+					}
+				}
+				bar.Increment()
+				wg.Done()
+			}
+		}
+	}()
+	wg.Wait()
+}
+
+func migrateToQiniu(
+	imgsChannel chan *config.Cell,
+	uploader *storage.FormUploader,
+	db *sql.DB,
+	token string,
+	onOneEnd func() interface{},
+) {
+	goroutineCount := runtime.NumCPU()
 	for i := 0; i < goroutineCount; i++ {
 		go func(index int) {
 			for {
@@ -51,14 +105,10 @@ func main() {
 							// log.Println("--- image has gone ---")
 							qn.DeleteRecord(db, item)
 						}
-						bar.Increment()
-						wg.Done()
 					}
-
+					onOneEnd()
 				}
 			}
 		}(i)
 	}
-	wg.Wait()
-	log.Println("job done")
 }

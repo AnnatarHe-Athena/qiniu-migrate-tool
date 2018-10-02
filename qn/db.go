@@ -22,8 +22,9 @@ func DbConnect() *sql.DB {
 	return db
 }
 
-func GetImageLen(db *sql.DB) (count int) {
-	result, err := db.Query("SELECT count(id)" + baseWhereCond)
+func GetImageLen(db *sql.DB, normal bool) (count int) {
+	condition := getWhereCondition(normal)
+	result, err := db.Query("SELECT count(id)" + condition)
 	defer result.Close()
 	config.ErrorHandle(err)
 	for result.Next() {
@@ -33,10 +34,21 @@ func GetImageLen(db *sql.DB) (count int) {
 	}
 	return
 }
+func getWhereCondition(normal bool) string {
+	condition := baseWhereCond + "AND premission="
+	if normal {
+		condition += "2"
+	} else {
+		condition += "3"
+	}
+	return condition
+}
 
-func GetImages(db *sql.DB, result chan *config.Cell, count int) {
+func GetImages(db *sql.DB, result chan *config.Cell, count int, normal bool) {
 	times := int(math.Ceil(float64(count) / 1000))
-	stmt, err := db.Prepare("SELECT id, img" + baseWhereCond + "ORDER BY id ASC LIMIT 1000 OFFSET $1")
+	condition := getWhereCondition(normal)
+
+	stmt, err := db.Prepare("SELECT id, img" + condition + "ORDER BY id ASC LIMIT 1000 OFFSET $1")
 	config.ErrorHandle(err)
 	for i := 0; i < times; i++ {
 		rows, err := stmt.Query(1000 * i)
