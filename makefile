@@ -1,3 +1,3 @@
 
 release:
-	go build -tags release -o main main.go 
+	go build -tags release -o main.exe main.go

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	_ "github.com/lib/pq"
@@ -23,8 +24,9 @@ func DbConnect() *sql.DB {
 }
 
 func GetImageLen(db *sql.DB, normal bool) (count int) {
+	prefix := "SELECT count(id)"
 	condition := getWhereCondition(normal)
-	result, err := db.Query("SELECT count(id)" + condition)
+	result, err := db.Query(prefix + condition)
 	defer result.Close()
 	config.ErrorHandle(err)
 	for result.Next() {
@@ -41,7 +43,10 @@ func getWhereCondition(normal bool) string {
 	} else {
 		condition += "3"
 	}
-	return condition
+	if normal {
+		return condition
+	}
+	return strings.Replace(condition, "not ", "", -1)
 }
 
 func GetImages(db *sql.DB, result chan *config.Cell, count int, normal bool) {
