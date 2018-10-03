@@ -62,11 +62,12 @@ func main() {
 				case item := <-imgsWillDelete:
 					if item != nil && strings.HasPrefix(item.Src, "qn://") {
 						filename := config.RevertFilename(item.Src)
+						log.Println(filename)
 						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil {
 							log.Println(err)
+							qn.DeleteRecord(db, item)
 						}
 						// 暂不删除，先测测再说
-						// qn.DeleteRecord(db, item)
 						bar.Increment()
 						wg.Done()
 					}

@@ -43,6 +43,6 @@ func GenFilename(origin string) (filename string) {
 }
 
 func RevertFilename(filename string) (origin string) {
-	origin = strings.Replace(filename, "qn://", "", 0)
+	origin = strings.Replace(filename, "qn://", "", -1)
 	return
 }
