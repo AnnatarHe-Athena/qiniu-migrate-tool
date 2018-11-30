@@ -20,7 +20,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 
 func randStringRunes(n int) string {
 	b := make([]rune, n)
@@ -38,6 +38,10 @@ func GenFilename(origin string) (filename string) {
 	u, _ := url.Parse(origin)
 	strs := strings.Split(u.Path, "/")
 	realName := strs[len(strs)-1]
+
+	if len(realName) <= 1 {
+		return "athena/misc/" + randStringRunes(35) + "-" + strconv.Itoa(int(time.Now().UnixNano())) + ".jpg"
+	}
 	filename = "athena/zhihu/" + realName
 	return
 }

@@ -19,9 +19,9 @@ func main() {
 
 	db := qn.DbConnect()
 
-	count := qn.GetImageLen(db, true)
+	count := qn.GetImageLen(true)
 
-	length := qn.GetImageLen(db, false)
+	length := qn.GetImageLen(false)
 	wg.Add(count + length)
 	bar := pb.StartNew(length + count)
 
@@ -29,8 +29,8 @@ func main() {
 	uploader := qn.UploaderGet()
 	bm := qn.GetBucketManager()
 
-	go qn.GetImages(db, imgsChannel, count, true)
-	go qn.GetImages(db, imgsWillDelete, length, false)
+	go qn.GetImages(imgsChannel, count, true)
+	go qn.GetImages(imgsWillDelete, length, false)
 
 	goroutineCount := runtime.NumCPU()
 	for i := 0; i < goroutineCount; i++ {
@@ -40,20 +40,19 @@ func main() {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
 						filename, ok := qn.UploadToQiniu(uploader, item, token)
-						log.Println("processing image update", filename)
 						if ok {
 							item.Src = "qn://" + filename
-							if qn.UpdateImage(db, item) {
+							if qn.UpdateImage(item) {
 								// log.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
 								//  已存在，不用删除文件，但是要删掉数据库的文件
 								// log.Println("--- Already have the file ---")
-								qn.DeleteRecord(db, item)
+								qn.DeleteRecord(item)
 							}
 						} else {
 							// 不存在，但是 图片没了，还是要删掉数据库文件
 							// log.Println("--- image has gone ---")
-							qn.DeleteRecord(db, item)
+							qn.DeleteRecord(item)
 						}
 						bar.Increment()
 						wg.Done()
@@ -65,7 +64,7 @@ func main() {
 						log.Println(filename)
 						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil {
 							log.Println(err)
-							qn.DeleteRecord(db, item)
+							qn.DeleteRecordSoft(item)
 						}
 						// 暂不删除，先测测再说
 						bar.Increment()

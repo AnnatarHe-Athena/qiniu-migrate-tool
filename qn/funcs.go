@@ -85,10 +85,10 @@ func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
 		src = "http://wx2.sinaimg.cn/large/" + src
 	}
 	res, e := http.Get(src)
-	config.ErrorHandle(e)
+	errorChecker(e)
 	lenStr := res.Header.Get("content-length")
 	length, err := strconv.ParseInt(lenStr, 10, 64)
-	config.ErrorHandle(err)
+	errorChecker(err)
 	if res.StatusCode == 301 {
 		return res.Body, length, false
 	}
