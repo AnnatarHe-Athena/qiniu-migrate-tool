@@ -62,8 +62,9 @@ func main() {
 					if item != nil && strings.HasPrefix(item.Src, "qn://") {
 						filename := config.RevertFilename(item.Src)
 						log.Println(filename)
-						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil {
+						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil && err.Error() != "no such file or directory" {
 							log.Println(err)
+						} else {
 							qn.DeleteRecordSoft(item)
 						}
 						// 暂不删除，先测测再说

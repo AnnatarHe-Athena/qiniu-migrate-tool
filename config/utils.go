@@ -42,6 +42,10 @@ func GenFilename(origin string) (filename string) {
 	if len(realName) <= 1 {
 		return "athena/misc/" + randStringRunes(35) + "-" + strconv.Itoa(int(time.Now().UnixNano())) + ".jpg"
 	}
+
+	if strings.Contains(origin, "ruguoapp.com") {
+		return "athena/jike/" + realName
+	}
 	filename = "athena/zhihu/" + realName
 	return
 }
