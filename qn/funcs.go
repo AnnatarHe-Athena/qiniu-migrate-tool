@@ -88,9 +88,9 @@ func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
 	errorChecker(e)
 	lenStr := res.Header.Get("content-length")
 	length, err := strconv.ParseInt(lenStr, 10, 64)
-	errorChecker(err)
-	if res.StatusCode == 301 {
-		return res.Body, length, false
+	if err != nil {
+		log.Println(cell.Src, cell.ID, err)
+		errorChecker(err)
 	}
 	return res.Body, length, true
 }

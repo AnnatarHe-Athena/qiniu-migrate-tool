@@ -29,7 +29,7 @@ func DbConnect() *sql.DB {
 	cfg := config.GetConfig()
 	dbPath := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", cfg.Host, cfg.Username, cfg.Pwd, cfg.Dbname)
 	dbInstance, err := sql.Open("postgres", dbPath)
-	db.SetMaxOpenConns(16)
+	// dbInstance.SetMaxOpenConns(16)
 	db = dbInstance
 	errorChecker(err)
 	return db
