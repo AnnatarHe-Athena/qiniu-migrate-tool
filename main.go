@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/cheggaaa/pb.v1"
+	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	"github.com/douban-girls/qiniu-migrate/qn"
@@ -63,7 +63,7 @@ func main() {
 						filename := config.RevertFilename(item.Src)
 						log.Println(filename)
 						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil && err.Error() != "no such file or directory" {
-							log.Println(err)
+							log.Println("bm delete error, and the error is: ", err)
 						} else {
 							qn.DeleteRecordSoft(item)
 						}

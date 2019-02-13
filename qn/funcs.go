@@ -82,7 +82,7 @@ func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
 	// fmt.Println(src)
 	if !strings.HasPrefix(cell.Src, "http") {
 		// 微博图片，需要转 url
-		src = "http://wx2.sinaimg.cn/large/" + src
+		src = "http://ww1.sinaimg.cn/large/" + src
 	}
 	res, e := http.Get(src)
 	errorChecker(e)

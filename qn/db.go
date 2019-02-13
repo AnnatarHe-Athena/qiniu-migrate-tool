@@ -121,8 +121,9 @@ func DeleteRecord(cell *config.Cell) bool {
 }
 
 func DeleteRecordSoft(cell *config.Cell) bool {
-	if err := db.QueryRow("UPDATE cells SET premission=5 WHERE id=$1", cell.ID); err != nil {
-		log.Println(err)
+	_, err := db.Exec("UPDATE cells SET premission=5 WHERE id=$1", cell.ID)
+	if err != nil {
+		log.Println("soft delete cell has error: ", err)
 		return false
 	}
 	return true

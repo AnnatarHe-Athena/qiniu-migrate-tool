@@ -1,3 +1,3 @@
 
 release:
-	go build -tags release -o main.exe main.go
+	CGO_ENABLED=0 go build -tags release -o main.exe main.go
