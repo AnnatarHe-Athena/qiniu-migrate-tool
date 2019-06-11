@@ -13,7 +13,21 @@ import (
 	"github.com/qiniu/api.v7/storage"
 )
 
-func SetupQiniu() string {
+type qiniuService struct {
+	Bucket        string
+	AccessKey     string
+	SecretKey     string
+	token         string
+	uploader      *storage.FormUploader
+	bucketManager *storage.BucketManager
+}
+
+type QiniuService interface {
+	Upload(content io.ReadCloser, length int64, originFileName string) (filename string, ok bool)
+	Delete(filename string) error
+}
+
+func initQiniuToken() string {
 	putPolicy := storage.PutPolicy{
 		Scope: config.Bucket,
 	}
@@ -22,8 +36,25 @@ func SetupQiniu() string {
 	upToken := putPolicy.UploadToken(mac)
 	return upToken
 }
+func initBucketManager() *storage.BucketManager {
+	mac := qbox.NewMac(config.AccessKey, config.SecretKey)
+	cfg := storage.Config{UseHTTPS: false}
+	bucketManager := storage.NewBucketManager(mac, &cfg)
+	return bucketManager
+}
 
-func UploaderGet() *storage.FormUploader {
+func NewQiniuService() QiniuService {
+	return qiniuService{
+		Bucket:        config.Bucket,
+		AccessKey:     config.AccessKey,
+		SecretKey:     config.SecretKey,
+		token:         initQiniuToken(),
+		uploader:      initUploader(),
+		bucketManager: initBucketManager(),
+	}
+}
+
+func initUploader() *storage.FormUploader {
 	cfg := storage.Config{}
 	cfg.Zone = &storage.ZoneHuadong
 	cfg.UseHTTPS = false
@@ -32,19 +63,10 @@ func UploaderGet() *storage.FormUploader {
 	return formUploader
 }
 
-func UploadToQiniu(
-	uploader *storage.FormUploader,
-	img *config.Cell,
-	token string,
-) (filename string, ok bool) {
-	content, length, ok := downloadImg(img)
-	defer content.Close()
-	if !ok {
-		return "", ok
-	}
-	filename = config.GenFilename(img.Src)
+func (s qiniuService) Upload(content io.ReadCloser, length int64, originFileName string) (filename string, ok bool) {
+	filename = config.GenFilename(originFileName)
 	ret := storage.PutExtra{}
-	err := uploader.Put(context.Background(), &ret, token, filename, content, length, &storage.PutExtra{})
+	err := s.uploader.Put(context.Background(), &ret, s.token, filename, content, length, &storage.PutExtra{})
 	if err != nil {
 		if err == io.EOF {
 			log.Panic("error when post the image to qiniu server")
@@ -54,28 +76,16 @@ func UploadToQiniu(
 			return filename, true
 		}
 		log.Println("retry to save the images", err)
-		return UploadToQiniu(uploader, img, token)
+		return s.Upload(content, length, originFileName)
 	}
 	return filename, true
 }
 
-func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
-	bucket := config.Bucket
-	err := bucketManager.Delete(bucket, filename)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+func (s qiniuService) Delete(filename string) error {
+	return s.bucketManager.Delete(s.Bucket, filename)
 }
 
-func GetBucketManager() *storage.BucketManager {
-	mac := qbox.NewMac(config.AccessKey, config.SecretKey)
-	cfg := storage.Config{UseHTTPS: false}
-	bucketManager := storage.NewBucketManager(mac, &cfg)
-	return bucketManager
-}
-
-func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
+func DownloadImage(cell *config.Cell) (io.ReadCloser, int64, bool) {
 	src := cell.Src
 	// fmt.Println(src)
 	if !strings.HasPrefix(cell.Src, "http") {

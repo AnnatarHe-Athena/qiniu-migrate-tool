@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"runtime"
 	"strings"
@@ -25,9 +26,7 @@ func main() {
 	wg.Add(count + length)
 	bar := pb.StartNew(length + count)
 
-	token := service.SetupQiniu()
-	uploader := service.UploaderGet()
-	bm := service.GetBucketManager()
+	qiniuService := service.NewQiniuService()
 
 	go service.GetImages(imgsChannel, count, true)
 	go service.GetImages(imgsWillDelete, length, false)
@@ -38,31 +37,55 @@ func main() {
 			for {
 				select {
 				case item := <-imgsChannel:
-					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						filename, ok := service.UploadToQiniu(uploader, item, token)
-						if ok {
-							item.Src = "qn://" + filename
-							if service.UpdateImage(item) {
-								// log.Println("--- SUCCESS SAVED A FILE ---")
-							} else {
-								//  已存在，不用删除文件，但是要删掉数据库的文件
-								// log.Println("--- Already have the file ---")
-								service.DeleteRecord(item)
-							}
-						} else {
-							// 不存在，但是 图片没了，还是要删掉数据库文件
-							// log.Println("--- image has gone ---")
-							service.DeleteRecord(item)
-						}
-						bar.Increment()
-						wg.Done()
+
+					imageReader, length, ok := service.DownloadImage(item)
+					if !ok {
+						log.Println("download image error: ", item.Src)
 					}
 
+					// imageByte, _ := ioutil.ReadAll(imageReader)
+
+					// faceDetectionService := service.TencentFaceDetectionService{
+					// 	AppID:  config.TencentAIAppID,
+					// 	AppKey: config.TencentAIAppKey,
+					// 	Image:  imageByte,
+					// }
+					
+					// // TODO: is vaild
+					// response, err := faceDetectionService.Request()
+					// if err != nil {
+					// 	log.Println("face", err)
+					// }
+
+					// if faceDetectionService.IsValid(response.FaceList[0]) {
+						if item != nil && !strings.HasPrefix(item.Src, "qn://") {
+							filename, ok := qiniuService.Upload(imageReader, length, item.Src)
+							if ok {
+								item.Src = "qn://" + filename
+								if service.UpdateImage(item) {
+									// log.Println("--- SUCCESS SAVED A FILE ---")
+								} else {
+									//  已存在，不用删除文件，但是要删掉数据库的文件
+									// log.Println("--- Already have the file ---")
+									service.DeleteRecord(item)
+								}
+							} else {
+								// 不存在，但是 图片没了，还是要删掉数据库文件
+								// log.Println("--- image has gone ---")
+								service.DeleteRecord(item)
+							}
+
+						// }
+					}
+
+					bar.Increment()
+					imageReader.Close()
+					wg.Done()
 				case item := <-imgsWillDelete:
 					if item != nil && strings.HasPrefix(item.Src, "qn://") {
 						filename := config.RevertFilename(item.Src)
 						log.Println(filename)
-						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil && err.Error() != "no such file or directory" {
+						if err := qiniuService.Delete(filename); err != nil && err.Error() != "no such file or directory" {
 							log.Println("bm delete error, and the error is: ", err)
 						} else {
 							service.DeleteRecordSoft(item)
@@ -80,4 +103,31 @@ func main() {
 	bar.Finish()
 
 	defer db.Close()
+}
+
+
+func main1() {
+	item := &config.Cell{
+		Src: "https://wx3.sinaimg.cn/orj360/8112eefdly1fonbw696egj20lc0sgx0h.jpg",
+	}
+	imageReader, _, ok := service.DownloadImage(item)
+	if !ok {
+		log.Println("download image error: ", item.Src)
+	}
+
+	imageByte, _ := ioutil.ReadAll(imageReader)
+
+	faceDetectionService := service.TencentFaceDetectionService{
+		AppID:  config.TencentAIAppID,
+		AppKey: config.TencentAIAppKey,
+		Image:  imageByte,
+	}
+	
+	// TODO: is vaild
+	response, err := faceDetectionService.Request()
+	firstFace := response.FaceList[0]
+
+	log.Println(firstFace.Beauty, firstFace.Gender)
+
+	log.Println("face detection service: ", response, err)
 }

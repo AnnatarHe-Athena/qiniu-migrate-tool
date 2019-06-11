@@ -67,7 +67,7 @@ type TencentFaceDetectionService struct {
 	Image  []byte
 }
 
-func (s TencentFaceDetectionService) setRequestSign(params map[string]string) {
+func (s TencentFaceDetectionService) setRequestSign(params map[string]string) url.Values {
 	params["app_id"] = s.AppID
 	params["time_stamp"] = strconv.FormatInt(time.Now().Unix(), 10)
 	params["nonce_str"] = RandStringRunes(12)
@@ -80,18 +80,18 @@ func (s TencentFaceDetectionService) setRequestSign(params map[string]string) {
 	sort.Strings(names)
 
 	u := url.Values{}
-
 	for _, name := range names {
 		u.Add(name, params[name])
 	}
 
-	result := u.Encode() + "&app_key=" + s.AppKey
-	sign := getMD5Hash(result)
+	sign := getMD5Hash(u.Encode() + "&app_key=" + s.AppKey)
 
+	u.Add("sign", strings.ToUpper(sign))
 	params["sign"] = strings.ToUpper(sign)
-	return
+	return u
 }
 
+// TODO: 优化压缩率
 func (s TencentFaceDetectionService) Compress() ([]byte, error) {
 	img, err := jpeg.Decode(bytes.NewReader(s.Image))
 	if err != nil {
@@ -107,7 +107,6 @@ func (s TencentFaceDetectionService) Compress() ([]byte, error) {
 	}
 
 	outputByte := output.Bytes()
-
 	return outputByte, nil
 }
 
@@ -118,27 +117,19 @@ func (s TencentFaceDetectionService) ToBase64Image(data []byte) string {
 }
 
 func (s TencentFaceDetectionService) Request() (AIQQFaceDetectionResponseData, error) {
-
 	compressedImage, err := s.Compress()
-
 	if err != nil {
 		return AIQQFaceDetectionResponseData{}, err
 	}
-
 	image := s.ToBase64Image(compressedImage)
-
 	requestData := map[string]string{
 		"image": image,
 		"mode":  "1",
 	}
+	requestUrlValues := s.setRequestSign(requestData)
 
-	s.setRequestSign(requestData)
-	requestDataBytes, err := json.Marshal(requestData)
-	if err != nil {
-		return AIQQFaceDetectionResponseData{}, err
-	}
-
-	request, err := http.NewRequest(http.MethodPost, faceDetectionURL, bytes.NewBuffer(requestDataBytes))
+	request, err := http.NewRequest(http.MethodPost, faceDetectionURL, strings.NewReader(requestUrlValues.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	if err != nil {
 		return AIQQFaceDetectionResponseData{}, err
@@ -163,4 +154,12 @@ func (s TencentFaceDetectionService) Request() (AIQQFaceDetectionResponseData, e
 	}
 
 	return responseData.Data, nil
+}
+
+func (s TencentFaceDetectionService) IsValid(face aiQQFaceDetectionResponseFaceItem) bool {
+	if face.Beauty > 50 && face.Gender < 50 {
+		return true
+	}
+
+	return false
 }

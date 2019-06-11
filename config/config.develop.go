@@ -9,12 +9,16 @@ type Cell struct {
 }
 
 const (
-		Host =      "localhost"
-		Username =  "postgres"
-		Pwd =       "admin"
-		Dbname =    "postgres"
-		AccessKey = ""
-		SecretKey = ""
-		Bucket =    "iamhele-com"
-		IsDEV  =   true
+	Host            = "localhost"
+	Username        = "postgres"
+	Pwd             = "admin"
+	Dbname          = "postgres"
+	AccessKey       = ""
+	SecretKey       = ""
+	Bucket          = "iamhele-com"
+	IsDEV           = true
+	TencentAIAppID  = ""
+	TencentAIAppKey = ""
+	// TencentAIAppID = "2117314147"
+	// TencentAIAppKey = "r9CTbgv065oi8QJl"
 )
