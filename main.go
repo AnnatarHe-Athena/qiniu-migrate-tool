@@ -9,7 +9,7 @@ import (
 	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"github.com/douban-girls/qiniu-migrate/config"
-	"github.com/douban-girls/qiniu-migrate/qn"
+	"github.com/douban-girls/qiniu-migrate/service"
 )
 
 func main() {
@@ -17,20 +17,20 @@ func main() {
 	imgsWillDelete := make(chan *config.Cell)
 	var wg sync.WaitGroup
 
-	db := qn.DbConnect()
+	db := service.DbConnect()
 
-	count := qn.GetImageLen(true)
+	count := service.GetImageLen(true)
 
-	length := qn.GetImageLen(false)
+	length := service.GetImageLen(false)
 	wg.Add(count + length)
 	bar := pb.StartNew(length + count)
 
-	token := qn.SetupQiniu()
-	uploader := qn.UploaderGet()
-	bm := qn.GetBucketManager()
+	token := service.SetupQiniu()
+	uploader := service.UploaderGet()
+	bm := service.GetBucketManager()
 
-	go qn.GetImages(imgsChannel, count, true)
-	go qn.GetImages(imgsWillDelete, length, false)
+	go service.GetImages(imgsChannel, count, true)
+	go service.GetImages(imgsWillDelete, length, false)
 
 	goroutineCount := runtime.NumCPU()
 	for i := 0; i < goroutineCount; i++ {
@@ -39,20 +39,20 @@ func main() {
 				select {
 				case item := <-imgsChannel:
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						filename, ok := qn.UploadToQiniu(uploader, item, token)
+						filename, ok := service.UploadToQiniu(uploader, item, token)
 						if ok {
 							item.Src = "qn://" + filename
-							if qn.UpdateImage(item) {
+							if service.UpdateImage(item) {
 								// log.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
 								//  已存在，不用删除文件，但是要删掉数据库的文件
 								// log.Println("--- Already have the file ---")
-								qn.DeleteRecord(item)
+								service.DeleteRecord(item)
 							}
 						} else {
 							// 不存在，但是 图片没了，还是要删掉数据库文件
 							// log.Println("--- image has gone ---")
-							qn.DeleteRecord(item)
+							service.DeleteRecord(item)
 						}
 						bar.Increment()
 						wg.Done()
@@ -65,7 +65,7 @@ func main() {
 						if err := bm.Delete(config.GetConfig().Bucket, filename); err != nil && err.Error() != "no such file or directory" {
 							log.Println("bm delete error, and the error is: ", err)
 						} else {
-							qn.DeleteRecordSoft(item)
+							service.DeleteRecordSoft(item)
 						}
 						// 暂不删除，先测测再说
 						bar.Increment()

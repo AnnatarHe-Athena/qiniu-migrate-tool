@@ -1,4 +1,4 @@
-package qn
+package service
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 )
 
 func SetupQiniu() string {
-	config := config.GetConfig()
 	putPolicy := storage.PutPolicy{
 		Scope: config.Bucket,
 	}
@@ -45,7 +44,7 @@ func UploadToQiniu(
 	}
 	filename = config.GenFilename(img.Src)
 	ret := storage.PutExtra{}
-	err := uploader.Put(context.Background(), &ret, token, filename, content, length, nil)
+	err := uploader.Put(context.Background(), &ret, token, filename, content, length, &storage.PutExtra{})
 	if err != nil {
 		if err == io.EOF {
 			log.Panic("error when post the image to qiniu server")
@@ -61,7 +60,7 @@ func UploadToQiniu(
 }
 
 func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
-	bucket := config.GetConfig().Bucket
+	bucket := config.Bucket
 	err := bucketManager.Delete(bucket, filename)
 	if err != nil {
 		log.Println(err)
@@ -70,8 +69,7 @@ func DeleteFromQiniu(bucketManager *storage.BucketManager, filename string) {
 }
 
 func GetBucketManager() *storage.BucketManager {
-	c := config.GetConfig()
-	mac := qbox.NewMac(c.AccessKey, c.SecretKey)
+	mac := qbox.NewMac(config.AccessKey, config.SecretKey)
 	cfg := storage.Config{UseHTTPS: false}
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 	return bucketManager
@@ -82,10 +80,13 @@ func downloadImg(cell *config.Cell) (io.ReadCloser, int64, bool) {
 	// fmt.Println(src)
 	if !strings.HasPrefix(cell.Src, "http") {
 		// 微博图片，需要转 url
-		src = "http://ww1.sinaimg.cn/large/" + src
+		src = "http://ww2.sinaimg.cn/large/" + src
 	}
 	res, e := http.Get(src)
-	errorChecker(e)
+	if e != nil {
+		log.Println(cell.ID, src)
+		errorChecker(e)
+	}
 	lenStr := res.Header.Get("content-length")
 	length, err := strconv.ParseInt(lenStr, 10, 64)
 	if err != nil {

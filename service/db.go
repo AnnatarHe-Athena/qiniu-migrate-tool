@@ -1,14 +1,11 @@
-package qn
+package service
 
 import (
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"math"
 	"strings"
-
 	"github.com/douban-girls/qiniu-migrate/config"
 	_ "github.com/lib/pq"
 )
@@ -26,8 +23,7 @@ func errorChecker(err error) {
 }
 
 func DbConnect() *sql.DB {
-	cfg := config.GetConfig()
-	dbPath := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", cfg.Host, cfg.Username, cfg.Pwd, cfg.Dbname)
+	dbPath := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Username, config.Pwd, config.Dbname)
 	dbInstance, err := sql.Open("postgres", dbPath)
 	// dbInstance.SetMaxOpenConns(16)
 	db = dbInstance
@@ -91,12 +87,6 @@ func GetImages(result chan *config.Cell, count int, normal bool) {
 	}
 	defer stmt.Close()
 	close(result)
-}
-
-func sha256hex(text string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(text))
-	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 func UpdateImage(cell *config.Cell) (rep bool) {
