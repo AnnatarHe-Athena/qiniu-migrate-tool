@@ -39,10 +39,10 @@ func main() {
 				select {
 				case item := <-imgsChannel:
 
-					imageReader, length, ok := service.DownloadImage(item)
-					if !ok {
-						log.Println("download image error: ", item.Src)
-					}
+					// imageReader, length, ok := service.DownloadImage(item)
+					// if !ok {
+					// 	log.Println("download image error: ", item.Src)
+					// }
 
 					// imageByte, _ := ioutil.ReadAll(imageReader)
 
@@ -60,7 +60,8 @@ func main() {
 
 					// if faceDetectionService.IsValid(response.FaceList[0]) {
 					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						filename, ok := qiniuService.Upload(imageReader, length, item.Src)
+						// filename, ok := qiniuService.Upload(imageReader, length, item.Src)
+						filename, ok := qiniuService.UploadByFetch(item.Src, item.Src)
 						if ok {
 							item.Src = "qn://" + filename
 							if service.UpdateImage(item) {
@@ -80,7 +81,7 @@ func main() {
 					}
 
 					bar.Increment()
-					imageReader.Close()
+					// imageReader.Close()
 					wg.Done()
 				case item := <-imgsWillDelete:
 					if item != nil && strings.HasPrefix(item.Src, "qn://") {

@@ -24,6 +24,7 @@ type qiniuService struct {
 
 type QiniuService interface {
 	Upload(content io.ReadCloser, length int64, originFileName string) (filename string, ok bool)
+	UploadByFetch(src, originFileName string) (filename string, ok bool)
 	Delete(filename string) error
 }
 
@@ -82,6 +83,12 @@ func (s qiniuService) Upload(content io.ReadCloser, length int64, originFileName
 		return s.Upload(content, length, originFileName)
 	}
 	return filename, true
+}
+
+func (s qiniuService) UploadByFetch(src, originFileName string) (filename string, ok bool) {
+	filename = config.GenFilename(originFileName)
+	response, err := s.bucketManager.Fetch(src, s.Bucket, filename)
+	return response.Key, err == nil
 }
 
 func (s qiniuService) Delete(filename string) error {
