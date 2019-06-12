@@ -93,9 +93,6 @@ func (s qiniuService) UploadByFetch(src, originFileName string) (filename string
 	}
 
 	response, err := s.bucketManager.Fetch(requestUrl, s.Bucket, filename)
-	if err != nil {
-		panic(err)
-	}
 	return response.Key, err
 }
 

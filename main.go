@@ -20,9 +20,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	db := service.DbConnect()
-
 	count := service.GetImageLen(true)
-
 	length := service.GetImageLen(false)
 	wg.Add(count + length)
 	bar := pb.StartNew(length + count)
@@ -81,11 +79,14 @@ func main() {
 							// log.Println("--- Already have the file ---")
 							service.DeleteRecord(item)
 						}
-					} else {
-						// 不存在，但是 图片没了，还是要删掉数据库文件
-						// log.Println("--- image has gone ---")
-						// service.DeleteRecord(item)
 					}
+
+					if err != nil && !strings.Contains(err.Error(), "EOF") {
+						log.Panic(err, "unexpected error")
+					}
+					// 不存在，但是 图片没了，还是要删掉数据库文件
+					// log.Println("--- image has gone ---")
+					// service.DeleteRecord(item)
 
 					bar.Increment()
 					// imageReader.Close()
