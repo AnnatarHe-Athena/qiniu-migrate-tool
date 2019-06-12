@@ -1,11 +1,13 @@
 package service
 
 import (
+	"time"
 	"database/sql"
 	"fmt"
 	"log"
 	"math"
 	"strings"
+
 	"github.com/douban-girls/qiniu-migrate/config"
 	_ "github.com/lib/pq"
 )
@@ -90,7 +92,7 @@ func GetImages(result chan *config.Cell, count int, normal bool) {
 }
 
 func UpdateImage(cell *config.Cell) (rep bool) {
-	rows, err := db.Query("UPDATE cells SET img=$1, md5=$2 WHERE id=$3", cell.Src, cell.Md5, cell.ID)
+	rows, err := db.Query("UPDATE cells SET img=$1, md5=$2, updatedat=$3 WHERE id=$4", cell.Src, cell.Md5, time.Now(), cell.ID)
 	if err != nil {
 		log.Println("update error: ", err, cell.Src)
 		log.Println("md5: ", cell.Md5)

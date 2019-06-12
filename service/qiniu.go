@@ -87,7 +87,16 @@ func (s qiniuService) Upload(content io.ReadCloser, length int64, originFileName
 
 func (s qiniuService) UploadByFetch(src, originFileName string) (filename string, ok bool) {
 	filename = config.GenFilename(originFileName)
-	response, err := s.bucketManager.Fetch(src, s.Bucket, filename)
+	requestUrl := src
+	if !strings.HasPrefix(requestUrl, "http") {
+		// 微博图片，需要转 url
+		requestUrl = "http://ww2.sinaimg.cn/large/" + src
+	}
+
+	response, err := s.bucketManager.Fetch(requestUrl, s.Bucket, filename)
+	if err != nil {
+		panic(err)
+	}
 	return response.Key, err == nil
 }
 
