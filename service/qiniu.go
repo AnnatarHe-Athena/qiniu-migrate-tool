@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/douban-girls/qiniu-migrate/config"
@@ -24,7 +23,7 @@ type qiniuService struct {
 
 type QiniuService interface {
 	Upload(content io.ReadCloser, length int64, originFileName string) (filename string, ok bool)
-	UploadByFetch(src, originFileName string) (filename string, ok bool)
+	UploadByFetch(src, originFileName string) (filename string, err error)
 	Delete(filename string) error
 }
 
@@ -85,7 +84,7 @@ func (s qiniuService) Upload(content io.ReadCloser, length int64, originFileName
 	return filename, true
 }
 
-func (s qiniuService) UploadByFetch(src, originFileName string) (filename string, ok bool) {
+func (s qiniuService) UploadByFetch(src, originFileName string) (filename string, err error) {
 	filename = config.GenFilename(originFileName)
 	requestUrl := src
 	if !strings.HasPrefix(requestUrl, "http") {
@@ -97,14 +96,14 @@ func (s qiniuService) UploadByFetch(src, originFileName string) (filename string
 	if err != nil {
 		panic(err)
 	}
-	return response.Key, err == nil
+	return response.Key, err
 }
 
 func (s qiniuService) Delete(filename string) error {
 	return s.bucketManager.Delete(s.Bucket, filename)
 }
 
-func DownloadImage(cell *config.Cell) (io.ReadCloser, int64, bool) {
+func DownloadImage(cell *config.Cell) (io.ReadCloser, bool) {
 	src := cell.Src
 	// fmt.Println(src)
 	if !strings.HasPrefix(cell.Src, "http") {
@@ -116,11 +115,5 @@ func DownloadImage(cell *config.Cell) (io.ReadCloser, int64, bool) {
 		log.Println(cell.ID, src)
 		errorChecker(e)
 	}
-	lenStr := res.Header.Get("content-length")
-	length, err := strconv.ParseInt(lenStr, 10, 64)
-	if err != nil {
-		log.Println(cell.Src, cell.ID, err)
-		errorChecker(err)
-	}
-	return res.Body, length, true
+	return res.Body, true
 }

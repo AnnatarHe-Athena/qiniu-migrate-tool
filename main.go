@@ -33,13 +33,16 @@ func main() {
 	go service.GetImages(imgsWillDelete, length, false)
 
 	// goroutineCount := runtime.NumCPU()
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 10; i++ {
 		go func(index int) {
 			for {
 				select {
 				case item := <-imgsChannel:
+					if item == nil || strings.HasPrefix(item.Src, "qn://") {
+						continue
+					}
 
-					// imageReader, length, ok := service.DownloadImage(item)
+					// imageReader, ok := service.DownloadImage(item)
 					// if !ok {
 					// 	log.Println("download image error: ", item.Src)
 					// }
@@ -52,32 +55,36 @@ func main() {
 					// 	Image:  imageByte,
 					// }
 
-					// // TODO: is vaild
 					// response, err := faceDetectionService.Request()
 					// if err != nil {
-					// 	log.Println("face", err)
+					// 	log.Println("face", err, item.Src)
 					// }
 
-					// if faceDetectionService.IsValid(response.FaceList[0]) {
-					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-						// filename, ok := qiniuService.Upload(imageReader, length, item.Src)
-						filename, ok := qiniuService.UploadByFetch(item.Src, item.Src)
-						if ok {
-							item.Src = "qn://" + filename
-							if service.UpdateImage(item) {
-								// log.Println("--- SUCCESS SAVED A FILE ---")
-							} else {
-								//  已存在，不用删除文件，但是要删掉数据库的文件
-								// log.Println("--- Already have the file ---")
-								service.DeleteRecord(item)
-							}
+					// if len(response.FaceList) == 0 {
+					// 	// TODO: update db data
+					// 	continue
+					// }
+
+					// if !faceDetectionService.IsValid(response.FaceList[0]) {
+					// 	// TODO: update db data
+					// 	continue
+					// }
+
+					// filename, ok := qiniuService.Upload(imageReader, length, item.Src)
+					filename, err := qiniuService.UploadByFetch(item.Src, item.Src)
+					if err == nil {
+						item.Src = "qn://" + filename
+						if service.UpdateImage(item) {
+							// log.Println("--- SUCCESS SAVED A FILE ---")
 						} else {
-							// 不存在，但是 图片没了，还是要删掉数据库文件
-							// log.Println("--- image has gone ---")
+							//  已存在，不用删除文件，但是要删掉数据库的文件
+							// log.Println("--- Already have the file ---")
 							service.DeleteRecord(item)
 						}
-
-						// }
+					} else {
+						// 不存在，但是 图片没了，还是要删掉数据库文件
+						// log.Println("--- image has gone ---")
+						// service.DeleteRecord(item)
 					}
 
 					bar.Increment()
@@ -109,9 +116,9 @@ func main() {
 
 func main1() {
 	item := &config.Cell{
-		Src: "https://wx3.sinaimg.cn/orj360/8112eefdly1fonbw696egj20lc0sgx0h.jpg",
+		Src: "https://wx3.sinaimg.cn/large/8112eefdly1fonbw696egj20lc0sgx0h.jpg",
 	}
-	imageReader, _, ok := service.DownloadImage(item)
+	imageReader, ok := service.DownloadImage(item)
 	if !ok {
 		log.Println("download image error: ", item.Src)
 	}
