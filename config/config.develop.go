@@ -19,6 +19,4 @@ const (
 	IsDEV           = true
 	TencentAIAppID  = ""
 	TencentAIAppKey = ""
-	// TencentAIAppID = "2117314147"
-	// TencentAIAppKey = "r9CTbgv065oi8QJl"
 )

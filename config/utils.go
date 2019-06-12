@@ -35,7 +35,10 @@ func GenFilename(origin string) (filename string) {
 	if strings.Contains(origin, "qq.com") {
 		return "athena/qq/" + randStringRunes(35) + "-" + strconv.Itoa(int(time.Now().UnixNano())) + ".jpg"
 	}
-	u, _ := url.Parse(origin)
+	u, err := url.Parse(origin)
+	if err != nil {
+		panic(err)
+	}
 	strs := strings.Split(u.Path, "/")
 	realName := strs[len(strs)-1]
 

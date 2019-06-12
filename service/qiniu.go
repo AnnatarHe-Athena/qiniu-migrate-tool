@@ -65,8 +65,11 @@ func initUploader() *storage.FormUploader {
 
 func (s qiniuService) Upload(content io.ReadCloser, length int64, originFileName string) (filename string, ok bool) {
 	filename = config.GenFilename(originFileName)
-	ret := storage.PutExtra{}
-	err := s.uploader.Put(context.Background(), &ret, s.token, filename, content, length, &storage.PutExtra{})
+	ret := storage.PutRet{}
+	extra := storage.PutExtra{}
+
+	err := s.uploader.Put(context.Background(), &ret, s.token, filename, content, length, &extra)
+
 	if err != nil {
 		if err == io.EOF {
 			log.Panic("error when post the image to qiniu server")

@@ -3,7 +3,8 @@ package main
 import (
 	"io/ioutil"
 	"log"
-	"runtime"
+
+	// "runtime"
 	"strings"
 	"sync"
 
@@ -31,8 +32,8 @@ func main() {
 	go service.GetImages(imgsChannel, count, true)
 	go service.GetImages(imgsWillDelete, length, false)
 
-	goroutineCount := runtime.NumCPU()
-	for i := 0; i < goroutineCount; i++ {
+	// goroutineCount := runtime.NumCPU()
+	for i := 0; i < 6; i++ {
 		go func(index int) {
 			for {
 				select {
@@ -50,7 +51,7 @@ func main() {
 					// 	AppKey: config.TencentAIAppKey,
 					// 	Image:  imageByte,
 					// }
-					
+
 					// // TODO: is vaild
 					// response, err := faceDetectionService.Request()
 					// if err != nil {
@@ -58,22 +59,22 @@ func main() {
 					// }
 
 					// if faceDetectionService.IsValid(response.FaceList[0]) {
-						if item != nil && !strings.HasPrefix(item.Src, "qn://") {
-							filename, ok := qiniuService.Upload(imageReader, length, item.Src)
-							if ok {
-								item.Src = "qn://" + filename
-								if service.UpdateImage(item) {
-									// log.Println("--- SUCCESS SAVED A FILE ---")
-								} else {
-									//  已存在，不用删除文件，但是要删掉数据库的文件
-									// log.Println("--- Already have the file ---")
-									service.DeleteRecord(item)
-								}
+					if item != nil && !strings.HasPrefix(item.Src, "qn://") {
+						filename, ok := qiniuService.Upload(imageReader, length, item.Src)
+						if ok {
+							item.Src = "qn://" + filename
+							if service.UpdateImage(item) {
+								// log.Println("--- SUCCESS SAVED A FILE ---")
 							} else {
-								// 不存在，但是 图片没了，还是要删掉数据库文件
-								// log.Println("--- image has gone ---")
+								//  已存在，不用删除文件，但是要删掉数据库的文件
+								// log.Println("--- Already have the file ---")
 								service.DeleteRecord(item)
 							}
+						} else {
+							// 不存在，但是 图片没了，还是要删掉数据库文件
+							// log.Println("--- image has gone ---")
+							service.DeleteRecord(item)
+						}
 
 						// }
 					}
@@ -105,7 +106,6 @@ func main() {
 	defer db.Close()
 }
 
-
 func main1() {
 	item := &config.Cell{
 		Src: "https://wx3.sinaimg.cn/orj360/8112eefdly1fonbw696egj20lc0sgx0h.jpg",
@@ -122,7 +122,7 @@ func main1() {
 		AppKey: config.TencentAIAppKey,
 		Image:  imageByte,
 	}
-	
+
 	// TODO: is vaild
 	response, err := faceDetectionService.Request()
 	firstFace := response.FaceList[0]
