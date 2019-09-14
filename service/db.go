@@ -1,12 +1,12 @@
 package service
 
 import (
-	"time"
-	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"log"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	_ "github.com/lib/pq"
@@ -14,7 +14,17 @@ import (
 
 const baseWhereCond = " FROM cells WHERE img not like '%qn://%' "
 
-var db *sql.DB
+type CellItem struct {
+	FromURL string `json:"fromURL"`
+	FromID  string `json:"fromID"`
+	Text    string `json:"text"`
+	Img     string `json:"img"`
+	Cate    int    `json:"cate"`
+
+	imageKeyInQiniu string `json:"-"`
+}
+
+var db *sqlx.DB
 
 func errorChecker(err error) {
 	if err != nil {
@@ -24,9 +34,9 @@ func errorChecker(err error) {
 	}
 }
 
-func DbConnect() *sql.DB {
+func DbConnect() *sqlx.DB {
 	dbPath := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", config.Host, config.Username, config.Pwd, config.Dbname)
-	dbInstance, err := sql.Open("postgres", dbPath)
+	dbInstance, err := sqlx.Open("postgres", dbPath)
 	// dbInstance.SetMaxOpenConns(16)
 	db = dbInstance
 	errorChecker(err)
@@ -119,4 +129,14 @@ func DeleteRecordSoft(cell *config.Cell) bool {
 		return false
 	}
 	return true
+}
+
+func (c CellItem) Save() error {
+	// TODO: update params
+	_, err := db.Exec(
+			"INSERT INTO cells(img, text, cate, premission, from_url, from_id, content, md5) VALUES($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (md5) DO NOTHING RETURNING id",
+			c.imageKeyInQiniu,c.Text, c.Cate, 2, c.FromURL, c.FromID, c.Text, sha256hex(c.Img),
+		)
+
+	return err
 }

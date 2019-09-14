@@ -4,3 +4,6 @@ debug
 config/config.release.go
 *.exe
 main
+
+.idea
+local-2.txt

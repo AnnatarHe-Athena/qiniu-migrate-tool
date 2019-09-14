@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"os"
 
 	// "runtime"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"github.com/douban-girls/qiniu-migrate/service"
 )
 
-func main() {
+func doMigrate() {
 	imgsChannel := make(chan *config.Cell)
 	imgsWillDelete := make(chan *config.Cell)
 	var wg sync.WaitGroup
@@ -82,7 +83,9 @@ func main() {
 					}
 
 					if err != nil && !strings.Contains(err.Error(), "EOF") {
-						log.Panic(err, "unexpected error")
+						log.Println(err)
+						// 这里有时候会报错，暂时不 panic 了
+						// panic(err)
 					}
 					// 不存在，但是 图片没了，还是要删掉数据库文件
 					// log.Println("--- image has gone ---")
@@ -115,7 +118,7 @@ func main() {
 	defer db.Close()
 }
 
-func main1() {
+func testFaceDetch() {
 	item := &config.Cell{
 		Src: "https://wx3.sinaimg.cn/large/8112eefdly1fonbw696egj20lc0sgx0h.jpg",
 	}
@@ -139,4 +142,62 @@ func main1() {
 	log.Println(firstFace.Beauty, firstFace.Gender)
 
 	log.Println("face detection service: ", response, err)
+}
+
+func main() {
+	doMigrate()
+	// insertIgData()
+	// printAllNot1Image()
+}
+
+func insertIgData() {
+	err := service.IGMain()
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+const baseFromQuery = "from cells where createdat < '2019-07-30 00:00:00' AND img like '%qn://%' and premission = 2"
+
+// 临时代码，打印出符合 qiniu shell 规范得文件
+func printAllNot1Image() {
+	// TODO: 获取所有 qiniu 图片，并将类型置为 1
+
+	db := service.DbConnect()
+	f, err := os.OpenFile("local-2.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	var cursor = 0
+	var count int
+
+	db.Get(&count, "SELECT count(*) "+baseFromQuery)
+
+	log.Println("count", count)
+
+	for cursor < count {
+		var keys []string
+		if err := db.Select(&keys, "SELECT img "+baseFromQuery+" LIMIT 1000 OFFSET $1", cursor); err != nil {
+			log.Println(err)
+			return
+		}
+
+		for _, k := range keys {
+			newK := strings.Replace(k, "qn://", "", -1)
+			if _, e := f.WriteString(newK + "\t1\n"); e != nil {
+				log.Println("write file error", e)
+			}
+		}
+
+		cursor += 1000
+	}
+
+	if err := f.Close(); err != nil {
+		log.Println("close", err)
+	}
+
+	return
 }
