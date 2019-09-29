@@ -99,6 +99,8 @@ func IGMain() error {
 				log.Println(err)
 				return err
 			}
+
+			c.imageKeyInQiniu = "qn://" + c.imageKeyInQiniu
 			if err := c.Save(); err != nil {
 				log.Println(err)
 				return err
