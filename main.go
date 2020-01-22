@@ -145,8 +145,8 @@ func testFaceDetch() {
 }
 
 func main() {
-	doMigrate()
-	// insertIgData()
+	// doMigrate()
+	insertIgData()
 	// printAllNot1Image()
 }
 

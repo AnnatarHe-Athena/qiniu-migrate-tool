@@ -49,6 +49,9 @@ func GenFilename(origin string) (filename string) {
 	if strings.Contains(origin, "ruguoapp.com") {
 		return "athena/jike/" + realName
 	}
+	if strings.Contains(origin, "meizitu.net") {
+		return "athena/mzitu" + strings.Split(u.Path, ".net")[0]
+	}
 	filename = "athena/zhihu/" + realName
 	return
 }
