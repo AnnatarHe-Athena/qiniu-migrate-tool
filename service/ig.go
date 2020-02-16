@@ -72,11 +72,11 @@ type igProfile struct {
 	} `json:"GraphProfileInfo"`
 }
 
-const baseDir = "D:/github/douban-girls/crawler/ig2"
+const baseDir = "D:/github/douban-girls/crawler/ig3"
 const igHost = "https://www.instagram.com/"
 
 func IGMain() error {
-	log.Println("gogogo")
+	log.Println("gogogo", baseDir)
 	dirs, err := ioutil.ReadDir(baseDir)
 
 	DbConnect()
@@ -86,15 +86,18 @@ func IGMain() error {
 		return err
 	}
 
-	for _, v := range dirs {
+	log.Println("all: ", len(dirs))
+
+	for idx, v := range dirs {
 		if !v.IsDir() {
 			continue
 		}
 
+		log.Println("current: ", idx, v.Name())
+
 		cells := fetchCellsFromDir(v.Name())
 
 		for _, c := range cells {
-
 			if err := uploadIgFileToQiniu(qiniuService, c); err != nil {
 				log.Println(err)
 				return err
@@ -103,7 +106,8 @@ func IGMain() error {
 			c.imageKeyInQiniu = "qn://" + c.imageKeyInQiniu
 			if err := c.Save(); err != nil {
 				log.Println(err)
-				return err
+				continue
+				// return err
 			}
 		}
 	}
