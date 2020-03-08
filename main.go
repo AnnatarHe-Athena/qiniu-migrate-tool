@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,7 +21,6 @@ func doMigrate() {
 	imgsWillDelete := make(chan *config.Cell)
 	var wg sync.WaitGroup
 
-	db := service.DbConnect()
 	count := service.GetImageLen(true)
 	length := service.GetImageLen(false)
 	wg.Add(count + length)
@@ -31,7 +31,6 @@ func doMigrate() {
 	go service.GetImages(imgsChannel, count, true)
 	go service.GetImages(imgsWillDelete, length, false)
 
-	// goroutineCount := runtime.NumCPU()
 	for i := 0; i < 10; i++ {
 		go func(index int) {
 			for {
@@ -41,35 +40,6 @@ func doMigrate() {
 						continue
 					}
 
-					// imageReader, ok := service.DownloadImage(item)
-					// if !ok {
-					// 	log.Println("download image error: ", item.Src)
-					// }
-
-					// imageByte, _ := ioutil.ReadAll(imageReader)
-
-					// faceDetectionService := service.TencentFaceDetectionService{
-					// 	AppID:  config.TencentAIAppID,
-					// 	AppKey: config.TencentAIAppKey,
-					// 	Image:  imageByte,
-					// }
-
-					// response, err := faceDetectionService.Request()
-					// if err != nil {
-					// 	log.Println("face", err, item.Src)
-					// }
-
-					// if len(response.FaceList) == 0 {
-					// 	// TODO: update db data
-					// 	continue
-					// }
-
-					// if !faceDetectionService.IsValid(response.FaceList[0]) {
-					// 	// TODO: update db data
-					// 	continue
-					// }
-
-					// filename, ok := qiniuService.Upload(imageReader, length, item.Src)
 					filename, err := qiniuService.UploadByFetch(item.Src, item.Src)
 					if err == nil {
 						item.Src = "qn://" + filename
@@ -115,7 +85,6 @@ func doMigrate() {
 	log.Println("job done")
 	bar.Finish()
 
-	defer db.Close()
 }
 
 func testFaceDetch() {
@@ -144,9 +113,35 @@ func testFaceDetch() {
 	log.Println("face detection service: ", response, err)
 }
 
+func getAction() string {
+	action := flag.String("action", "", "migrate weibo images to qiniu")
+	flag.Parse()
+
+	if *action == "" {
+		panic("action should be `migrate`, `instrgam` or `printNot1`")
+	}
+	return *action
+}
+
 func main() {
+	action := getAction()
+	db := service.DbConnect()
+	defer db.Close()
+
+	if action == "migrate" {
+		// doMigrate()
+		return
+	}
+
+	if action == "tag:migrate" {
+		service.MigrateTagsFromCategories()
+		return
+	}
+
+	panic("not support this type yet: " + action)
+
 	// doMigrate()
-	insertIgData()
+	// insertIgData()
 	// printAllNot1Image()
 }
 
