@@ -5,10 +5,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/qiniu/api.v7/storage"
+	"github.com/sirupsen/logrus"
 )
 
 type igImage struct {
@@ -72,12 +74,11 @@ type igProfile struct {
 	} `json:"GraphProfileInfo"`
 }
 
-const baseDir = "D:/github/douban-girls/crawler/ig3"
 const igHost = "https://www.instagram.com/"
 
-func IGMain() error {
-	log.Println("gogogo", baseDir)
-	dirs, err := ioutil.ReadDir(baseDir)
+func IGMain(dir string) error {
+	log.Println("gogogo", dir)
+	dirs, err := ioutil.ReadDir(dir)
 
 	DbConnect()
 	qiniuService := NewQiniuService()
@@ -95,17 +96,19 @@ func IGMain() error {
 
 		log.Println("current: ", idx, v.Name())
 
-		cells := fetchCellsFromDir(v.Name())
+		cells := fetchCellsFromDir(v.Name(), dir)
 
 		for _, c := range cells {
 			if err := uploadIgFileToQiniu(qiniuService, c); err != nil {
-				log.Println(err)
+				logrus.Errorln(err)
 				return err
 			}
 
 			c.imageKeyInQiniu = "qn://" + c.imageKeyInQiniu
 			if err := c.Save(); err != nil {
-				log.Println(err)
+				if !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+					logrus.Errorln(err)
+				}
 				continue
 				// return err
 			}
@@ -133,19 +136,19 @@ func uploadIgFileToQiniu(service QiniuService, item CellItem) error {
 
 	if err != nil {
 		if err == io.EOF {
-			log.Panic("error when post the image to qiniu server")
+			logrus.Panic("error when post the image to qiniu server")
 		}
 		if err.Error() == "file exists" {
-			log.Println(err)
+			logrus.Println(err)
 			return nil
 		}
-		log.Println("retry to save the images", err)
+		logrus.Println("retry to save the images", err)
 		return uploadIgFileToQiniu(service, item)
 	}
 	return nil
 }
 
-func fetchCellsFromDir(dirname string) (results []CellItem) {
+func fetchCellsFromDir(dirname string, baseDir string) (results []CellItem) {
 	metaData, _ := ioutil.ReadFile(baseDir + "/" + dirname + "/" + dirname + ".json")
 
 	var meta igProfile
@@ -156,46 +159,43 @@ func fetchCellsFromDir(dirname string) (results []CellItem) {
 		panic(err)
 	}
 
-	files, _ := ioutil.ReadDir(baseDir + "/" + dirname)
-
-	for _, f := range files {
-		if f.IsDir() {
+	for _, i := range meta.GraphImages {
+		if i.IsVideo {
 			continue
 		}
+		for _, u := range i.Urls {
 
-		if !strings.HasSuffix(f.Name(), ".jpg") {
-			continue
+			uurl, _ := url.Parse(u)
+			paths := strings.Split(uurl.Path, "/")
+			img := paths[len(paths)-1]
+			if !strings.HasSuffix(img, ".jpg") {
+				continue
+			}
+			_, err := os.Stat(baseDir + "/" + dirname + "/" + img)
+			if os.IsNotExist(err) {
+				logrus.Errorln(baseDir+"/"+dirname+"/"+img, err)
+				continue
+			}
+			imageEdges := i.EdgeMediaToCaption.Edges
+
+			imageText := i.Username
+
+			if len(imageEdges) > 0 {
+				imageText = imageEdges[0].Node.Text
+			}
+
+			item := CellItem{
+				FromID:          igHost + i.Username,
+				FromURL:         igHost + "p/" + i.Shortcode,
+				Text:            imageText,
+				Img:             baseDir + "/" + dirname + "/" + img,
+				imageKeyInQiniu: "athena/instagram/" + img,
+				Cate:            247,
+			}
+
+			results = append(results, item)
 		}
-
-		imageData := findIgImageItem(meta, f.Name())
-
-		imageEdges := imageData.EdgeMediaToCaption.Edges
-
-		imageText := imageData.Username
-
-		if len(imageEdges) > 0 {
-			imageText = imageEdges[0].Node.Text
-		}
-
-		item := CellItem{
-			FromID:          igHost + imageData.Username,
-			FromURL:         igHost + "p/" + imageData.Shortcode,
-			Text:            imageText,
-			Img:             baseDir + "/" + dirname + "/" + f.Name(),
-			imageKeyInQiniu: "athena/instagram/" + f.Name(),
-			Cate:            247,
-		}
-
-		results = append(results, item)
 	}
+
 	return results
-}
-
-func findIgImageItem(profile igProfile, filename string) igImage {
-	for _, obj := range profile.GraphImages {
-		if strings.Contains(obj.DisplayURL, filename) {
-			return obj
-		}
-	}
-	return igImage{}
 }

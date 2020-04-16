@@ -14,6 +14,7 @@ import (
 
 	"github.com/douban-girls/qiniu-migrate/config"
 	"github.com/douban-girls/qiniu-migrate/service"
+	"github.com/sirupsen/logrus"
 )
 
 func doMigrate() {
@@ -53,16 +54,19 @@ func doMigrate() {
 					}
 
 					if err != nil && !strings.Contains(err.Error(), "EOF") {
-						log.Println(err)
+						log.Println(err, item.Src, item.ID)
 						// 这里有时候会报错，暂时不 panic 了
 						// panic(err)
 					}
+
+					// FIXME: tag 功能开启后再打开此项功能
+					// go service.TagCellByID(item.ID)
+
 					// 不存在，但是 图片没了，还是要删掉数据库文件
 					// log.Println("--- image has gone ---")
 					// service.DeleteRecord(item)
 
 					bar.Increment()
-					// imageReader.Close()
 					wg.Done()
 				case item := <-imgsWillDelete:
 					if item != nil && strings.HasPrefix(item.Src, "qn://") {
@@ -114,7 +118,7 @@ func testFaceDetch() {
 }
 
 func getAction() string {
-	action := flag.String("action", "", "migrate weibo images to qiniu")
+	action := flag.String("action", "", "migrate weibo images to qiniu. `migrate`, `tag:migrate` or `instgram`")
 	flag.Parse()
 
 	if *action == "" {
@@ -123,13 +127,15 @@ func getAction() string {
 	return *action
 }
 
+const baseDir = "D:/github/douban-girls/crawler/ig3"
+
 func main() {
 	action := getAction()
 	db := service.DbConnect()
 	defer db.Close()
 
 	if action == "migrate" {
-		// doMigrate()
+		doMigrate()
 		return
 	}
 
@@ -138,18 +144,17 @@ func main() {
 		return
 	}
 
+	if action == "instgram" {
+		if err := service.IGMain(baseDir); err != nil {
+			logrus.Errorf(err.Error())
+		}
+	}
+
 	panic("not support this type yet: " + action)
 
 	// doMigrate()
 	// insertIgData()
 	// printAllNot1Image()
-}
-
-func insertIgData() {
-	err := service.IGMain()
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 const baseFromQuery = "from cells where createdat < '2019-07-30 00:00:00' AND img like '%qn://%' and premission = 2"

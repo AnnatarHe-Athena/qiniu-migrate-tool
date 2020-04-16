@@ -33,17 +33,34 @@ type TagGirlsMapping struct {
 }
 
 func fetchCategories() (categories []Category, err error) {
+
+	cachedCates, ok := localCache.Get("db:categories")
+
+	if ok {
+		return cachedCates.([]Category), nil
+	}
+
 	if err = db.Select(&categories, "select id, name, src from categories"); err != nil {
 		return
 	}
+
+	localCache.Set("db:categories", categories, time.Minute*20)
+
 	return categories, nil
 }
 
 func fetchTags() (tags []Tag, err error) {
+	cachedTags, ok := localCache.Get("db:tags")
+
+	if ok {
+		return cachedTags.([]Tag), nil
+	}
+
 	if err = db.Select(&tags, "SELECT * FROM tags"); err != nil {
 		return
 	}
 
+	localCache.Set("db:tags", tags, time.Minute*10)
 	return tags, nil
 }
 
@@ -103,6 +120,21 @@ func (c cellLite) FindTagIdByCateName(cateName string, tags []Tag) int {
 	return -1
 }
 
+func getKeywordsMap() map[string]int {
+	return map[string]int{
+		// hard code
+		"腿":    3,
+		"胸":    6,
+		"臀":    5,
+		"屁股":   5,
+		"🐻":    6,
+		"腰":    5,
+		"自拍":   2,
+		"plmm": 2,
+	}
+
+}
+
 func tagCells() error {
 	lastID := 0
 	categories, err := fetchCategories()
@@ -115,21 +147,9 @@ func tagCells() error {
 		panic(err)
 	}
 
-	keywordForTagIdDict := map[string]int{
-		// hard code
-		"腿":    3,
-		"胸":    6,
-		"臀":    5,
-		"屁股":   5,
-		"🐻":    6,
-		"腰":    5,
-		"自拍":   2,
-		"plmm": 2,
-	}
+	keywordForTagIdDict := getKeywordsMap()
 
 	var cells []cellLite
-
-	// logrus.Println(categories, tags)
 
 	for lastID != -1 {
 		if err := db.Select(&cells, "SELECT id, text, cate from cells where id > $1 ORDER BY id ASC LIMIT 1000", lastID); err != nil {
@@ -145,7 +165,6 @@ func tagCells() error {
 				cell.FindCateNameBy(categories),
 				tags,
 			)
-			logrus.Println("tagid: ", tagID)
 
 			doTag(cell, tagID, keywordForTagIdDict)
 
@@ -183,7 +202,6 @@ func doTag(cell cellLite, belongsToTagID int, dict map[string]int) error {
 			CellID: cell.ID,
 		})
 	}
-
 	for keyword, tagID := range dict {
 		if strings.Contains(cell.Content, keyword) {
 			execInsert(TagGirlsMapping{
@@ -194,4 +212,36 @@ func doTag(cell cellLite, belongsToTagID int, dict map[string]int) error {
 	}
 
 	return nil
+}
+
+// TagCellByID 针对某条内容进行 tag 判定
+func TagCellByID(id int) {
+	dict := getKeywordsMap()
+	var cell cellLite
+
+	if err := db.Select(&cell, "SELECT id, text, cate from cells where id > $1 ORDER BY id ASC LIMIT 1000", id); err != nil {
+		logrus.Errorln("error fetch cell", id)
+		return
+	}
+
+	categories, _ := fetchCategories()
+	tags, _ := fetchTags()
+
+	tagID := cell.FindTagIdByCateName(
+		cell.FindCateNameBy(categories),
+		tags,
+	)
+	execInsert(TagGirlsMapping{
+		TagID:  tagID,
+		CellID: cell.ID,
+	})
+
+	for keyword, tagID := range dict {
+		if strings.Contains(cell.Content, keyword) {
+			execInsert(TagGirlsMapping{
+				TagID:  tagID,
+				CellID: cell.ID,
+			})
+		}
+	}
 }
